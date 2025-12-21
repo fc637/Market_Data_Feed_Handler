@@ -86,33 +86,3 @@ private:
 };
 /***********************************************************************************************/
 
-/******************************************************************************************************************************************** */
-// USED IN SINGLE 
-// class ExchangeSimulator {
-// public:
-//     ExchangeSimulator(uint16_t port, size_t num_symbols = 100);
-//     void start();
-//     void run();
-//     void set_tick_rate(uint32_t ticks_per_second);
-//     void enable_fault_injection(bool enable);
-
-// private:
-//     void handle_new_connection();
-//     void generate_tick(uint16_t symbol_id);
-//     void broadcast_message(const void* data, size_t len);
-//     void handle_client_disconnect(int client_fd);
-//     void set_nonblocking(int fd);
-
-// private:
-//     uint16_t port_;
-//     size_t num_symbols_;
-//     uint32_t tick_rate_ = 10000; // default 10k msgs/sec
-//     bool fault_injection_ = false;
-
-//     int listen_fd_;
-//     int epoll_fd_;
-//     vector<int> client_fds_;
-//     unordered_map<uint32_t, SymbolState> symbols_;
-
-//     mt19937_64 rng_;
-// };

@@ -19,9 +19,3 @@ int main(int argc, char* argv[]) {
     run_exchange(port);
 }
 
-// int main() {
-//     ExchangeSimulator sim(9000, 100); // port 9000, 100 symbols
-//     sim.set_tick_rate(10000);          // 10k ticks/sec
-//     sim.start();
-//     return 0;
-// }

@@ -107,28 +107,6 @@ ssize_t MarketDataSocket::receive(void* buffer, size_t max_len) {
 }
 
 
-// ssize_t MarketDataSocket::receive(void* buffer, size_t max_len) {
-//     ssize_t n = recv(sock_fd_, buffer, max_len, 0);
-
-//     if (n > 0) {
-//         uint64_t ts =
-//             chrono::duration_cast<chrono::nanoseconds>(
-//                 chrono::high_resolution_clock::now().time_since_epoch()).count();
-//         latency_.record_kernel_to_user(ts);
-//         return n;
-//     }
-
-//     if (n == 0) {
-//         connected_ = false;   // FIN
-//         return 0;
-//     }
-
-//     if (errno == EAGAIN || errno == EWOULDBLOCK)
-//         return -1;
-
-//     connected_ = false;
-//     return -1;
-// }
 
 bool MarketDataSocket::send_subscription(
         const std::vector<uint16_t>& symbol_ids) {

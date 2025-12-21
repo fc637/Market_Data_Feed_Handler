@@ -167,13 +167,7 @@ void FeedHandler::shutdown() {
     socket_.disconnect();
 }
 
-// -------- Entry Point --------
 
-// int main() {
-//     FeedHandler handler("127.0.0.1", 9876, 500);
-//     handler.run();
-//     return 0;
-// }
 
 
 
