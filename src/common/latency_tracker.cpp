@@ -35,22 +35,3 @@ uint64_t LatencyTracker::p99() const {
     std::nth_element(tmp.begin(), tmp.begin() + idx, tmp.end());
     return tmp[idx];
 }
-/************************************************************************************************************ */
-// void LatencyTracker::record_kernel_to_user(uint64_t ns) {
-//     samples_.push_back(ns);
-// }
-
-// uint64_t LatencyTracker::p50() const {
-//     if (samples_.empty()) return 0;
-//     auto tmp = samples_;
-//     std::nth_element(tmp.begin(), tmp.begin() + tmp.size()/2, tmp.end());
-//     return tmp[tmp.size()/2];
-// }
-
-// uint64_t LatencyTracker::p99() const {
-//     if (samples_.empty()) return 0;
-//     auto tmp = samples_;
-//     size_t idx = tmp.size() * 99 / 100;
-//     std::nth_element(tmp.begin(), tmp.begin() + idx, tmp.end());
-//     return tmp[idx];
-// }

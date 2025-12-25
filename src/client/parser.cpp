@@ -24,10 +24,20 @@ inline uint32_t xor_checksum(const uint8_t* data, size_t len) {
 
 } // anonymous namespace
 
-MarketDataParser::MarketDataParser()
+// MarketDataParser::MarketDataParser()
+//     : write_pos_(0),
+//       read_pos_(0),
+//       last_seq_(0) {}
+
+// MarketDataParser::MarketDataParser()
+//     : write_pos_(0),
+//       read_pos_(0),
+//       last_seq_per_symbol_(MAX_SYMBOLS, 0) {}
+
+MarketDataParser::MarketDataParser(size_t num_symbols)
     : write_pos_(0),
       read_pos_(0),
-      last_seq_(0) {}
+      last_seq_per_symbol_(num_symbols, 0) {}
 
 void MarketDataParser::consume(const uint8_t* data,
                                size_t len,
@@ -91,7 +101,20 @@ void MarketDataParser::parse_loop(TickCallback on_tick) {
             continue;
         }
 
+        // ===============================
+        // ✅ SEQUENCE GAP CHECK GOES HERE
+        // ===============================
+        auto& last = last_seq_per_symbol_[sym];
+        if (last != 0 && seq != last + 1) {
+            std::cerr << "[PARSER] Seq gap sym=" << sym
+                    << " expected=" << last + 1
+                    << " got=" << seq << "\n";
+        }
+        last = seq;
+
+
         Tick tick{};
+        tick.type = static_cast<MsgType>(type);
         tick.timestamp_ns = ts;
         tick.symbol_id = sym;
         tick.seq_no = seq;
@@ -109,6 +132,13 @@ void MarketDataParser::parse_loop(TickCallback on_tick) {
         }
         // Latency tracking (end of parse)
         LatencyTracker::instance().record_userspace(ts);
+        // ⬇⬇⬇ PUT HERE ⬇⬇⬇
+        // ✔️ Sequence gap detection (SAFE PLACE)
+        // if (last_seq_ != 0 && seq != last_seq_ + 1) {
+        //     std::cerr << "[PARSER] Sequence gap detected. "
+        //             << "Expected=" << last_seq_ + 1
+        //             << " Got=" << seq << "\n";
+        // }
         on_tick(tick);
         read_pos_ += msg_size;
     }

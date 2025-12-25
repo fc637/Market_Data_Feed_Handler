@@ -62,7 +62,7 @@ void Visualizer::print_table(const std::vector<size_t>& top) {
     std::cout << "-------------------------------------------------\n";
 
     for (size_t id : top) {
-        MarketState s;
+        MarketState s {};
         if (!cache_.getSnapshot(id, s))
             continue;
 
@@ -86,18 +86,28 @@ void Visualizer::render() {
         if (cache_.getSnapshot(i, s))
             total_updates += s.update_count;
     }
+    
 
     // Top 20 symbols by update count
-    std::partial_sort(ids.begin(), ids.begin() + 20, ids.end(),
+    size_t topN = std::min<size_t>(20, ids.size());
+    std::partial_sort(ids.begin(), ids.begin()+ topN, ids.end(),
         [&](size_t a, size_t b) {
             MarketState sa, sb;
             cache_.getSnapshot(a, sa);
             cache_.getSnapshot(b, sb);
             return sa.update_count > sb.update_count;
         });
+    // std::partial_sort(ids.begin(), ids.begin() + 20, ids.end(),
+    //     [&](size_t a, size_t b) {
+    //         MarketState sa, sb;
+    //         cache_.getSnapshot(a, sa);
+    //         cache_.getSnapshot(b, sb);
+    //         return sa.update_count > sb.update_count;
+    //     });
 
     print_header(total_updates);
-    print_table({ids.begin(), ids.begin() + std::min<size_t>(20, ids.size())});
+    print_table({ids.begin(), ids.begin() + topN});
+    // print_table({ids.begin(), ids.begin() + std::min<size_t>(20, ids.size())});
 
     std::cout << "\nStatistics:\n";
     std::cout << "Latency p50: " << LatencyTracker::instance().p50() / 1000 << " us\n";

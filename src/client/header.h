@@ -55,7 +55,7 @@ class MarketDataParser {
 public:
     using TickCallback = std::function<void(const Tick&)>;
 
-    MarketDataParser();
+    explicit MarketDataParser(size_t num_symbols); //MarketDataParser();
 
     // Consume raw TCP bytes
     void consume(const uint8_t* data,
@@ -70,7 +70,8 @@ private:
     alignas(64) uint8_t buffer_[MAX_BUFFER];
     size_t write_pos_;
     size_t read_pos_;
-    uint32_t last_seq_;
+    // uint32_t last_seq_;
+    std::vector<uint32_t> last_seq_per_symbol_;
 
     void reset();
     void parse_loop(TickCallback on_tick);

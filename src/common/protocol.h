@@ -6,6 +6,11 @@
 #include <mutex>
 #include <atomic>
 #include <memory>
+enum class MsgType : uint16_t {
+    Trade = 0x01,
+    Quote = 0x02,
+    Heartbeat = 0x03
+};
 struct MarketState {
     double   best_bid = 0;
     double   best_ask = 0;
@@ -18,6 +23,7 @@ struct MarketState {
 };
 // Shared Tick structure between server and client
 struct Tick {
+    MsgType type{};
     uint64_t timestamp_ns;       // Nanoseconds since epoch
     uint32_t symbol_id;          // Symbol ID (0 - num_symbols-1)
     double bid_price;            // Best bid price
@@ -65,6 +71,8 @@ class LockFreeSymbolCache {
 public:
     explicit LockFreeSymbolCache(size_t num_symbols);
       ~LockFreeSymbolCache();
+
+    size_t size() const;   // ✅ declaration only
 
     // Writer API (single thread)
     void updateBid(uint32_t symbol, double price, uint32_t qty, uint64_t ts);

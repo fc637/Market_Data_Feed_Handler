@@ -2,49 +2,16 @@
 #include "protocol.h"
 #include <vector>
 
+
+/* ----------------- Internal atomic state ----------------- */
 // struct alignas(64) AtomicMarketState {
 //     std::atomic<uint64_t> version{0};
 //     MarketState state;
 // };
 
-// class LockFreeSymbolCacheImpl {
-// public:
-//     explicit LockFreeSymbolCacheImpl(size_t n) : symbols(n) {}
-//     std::vector<AtomicMarketState> symbols;
-// };
-
-
-// static inline void begin_write(AtomicMarketState& s) {
-//     s.version.fetch_add(1, std::memory_order_release);
-// }
-
-// static inline void end_write(AtomicMarketState& s) {
-//     s.version.fetch_add(1, std::memory_order_release);
-// }
-
-/*******************************************************************************************************8*/
-
-// LockFreeSymbolCache::LockFreeSymbolCache(size_t num_symbols)
-//     : symbols_(num_symbols) {}
-
-// ---- Writer helpers ----
-// static inline void begin_write(AtomicMarketState& s) {
-//     s.version.fetch_add(1, std::memory_order_release); // make odd
-// }
-
-// static inline void end_write(AtomicMarketState& s) {
-//     s.version.fetch_add(1, std::memory_order_release); // make even
-// }
-
-
-// PIMPL storage
-// LockFreeSymbolCache::LockFreeSymbolCache(size_t num_symbols)
-//     : impl_(new LockFreeSymbolCacheImpl(num_symbols)) {}
-
-/* ----------------- Internal atomic state ----------------- */
 struct alignas(64) AtomicMarketState {
-    std::atomic<uint64_t> version{0};
-    MarketState state;
+    std::atomic<uint64_t> seq;
+    MarketState data{};
 };
 
 /* ================= PIMPL DEFINITION ================= */
@@ -52,18 +19,31 @@ struct alignas(64) AtomicMarketState {
 // THIS LINE IS THE FIX
 struct LockFreeSymbolCache::LockFreeSymbolCacheImpl {
     explicit LockFreeSymbolCacheImpl(size_t n)
-        : symbols(n) {}
+        : symbols(n) {
+            for (auto& s : symbols) {
+                s.data = MarketState{};
+                s.seq.store(0, std::memory_order_relaxed);
+            }
+        }
 
     std::vector<AtomicMarketState> symbols;
 };
 
 /* ----------------- helpers ----------------- */
+// static inline void begin_write(AtomicMarketState& s) {
+//     s.version.fetch_add(1, std::memory_order_release);
+// }
+
+// static inline void end_write(AtomicMarketState& s) {
+//     s.version.fetch_add(1, std::memory_order_release);
+// }
+
 static inline void begin_write(AtomicMarketState& s) {
-    s.version.fetch_add(1, std::memory_order_release);
+    s.seq.fetch_add(1, std::memory_order_release); // odd = write begin
 }
 
 static inline void end_write(AtomicMarketState& s) {
-    s.version.fetch_add(1, std::memory_order_release);
+    s.seq.fetch_add(1, std::memory_order_release); // even = write end
 }
 
 /* ================= API IMPLEMENTATION ================= */
@@ -81,10 +61,15 @@ void LockFreeSymbolCache::updateBid(
     auto& s = impl_->symbols[symbol];
     begin_write(s);
 
-    s.state.best_bid = price;
-    s.state.bid_quantity = qty;
-    s.state.last_update_time = ts;
-    s.state.update_count++;
+    s.data.best_bid = price;
+    s.data.bid_quantity = qty;
+    s.data.last_update_time = ts;
+    s.data.update_count++;
+
+    // s.state.best_bid = price;
+    // s.state.bid_quantity = qty;
+    // s.state.last_update_time = ts;
+    // s.state.update_count++;
 
     end_write(s);
 }
@@ -96,32 +81,72 @@ void LockFreeSymbolCache::updateAsk(
     auto& s = impl_->symbols[symbol];
     begin_write(s);
 
-    s.state.best_ask = price;
-    s.state.ask_quantity = qty;
-    s.state.last_update_time = ts;
-    s.state.update_count++;
+    s.data.best_ask = price;
+    s.data.ask_quantity = qty;
+    s.data.last_update_time = ts;
+    s.data.update_count++;    
+    // s.state.best_ask = price;
+    // s.state.ask_quantity = qty;
+    // s.state.last_update_time = ts;
+    // s.state.update_count++;
 
     end_write(s);
 }
 
 
 // ---- Reader API ----
+// bool LockFreeSymbolCache::getSnapshot(
+//     uint32_t symbol, MarketState& out) const {
+
+//     // const auto& s = symbols_[symbol];
+//     const auto& s = impl_->symbols[symbol];
+
+//     while (true) {
+//         uint64_t v1 = s.version.load(std::memory_order_acquire);
+//         if (v1 & 1) continue;  // writer active
+
+//         out = s.state;         // plain copy
+
+//         uint64_t v2 = s.version.load(std::memory_order_acquire);
+//         if (v1 == v2)
+//             return true;       // consistent snapshot
+//     }
+// }
+
+// bool LockFreeSymbolCache::getSnapshot(
+//     uint32_t symbol, MarketState& out) const {
+
+//     const auto& s = impl_->symbols[symbol];
+
+//     while (true) {
+//         uint64_t start = s.seq.load(std::memory_order_acquire);
+//         if (start & 1) continue;   // writer in progress
+
+//         out = s.data;              // copy snapshot
+
+//         uint64_t end = s.seq.load(std::memory_order_acquire);
+//         if (start == end)
+//             return true;
+//     }
+// }
+
 bool LockFreeSymbolCache::getSnapshot(
     uint32_t symbol, MarketState& out) const {
 
-    // const auto& s = symbols_[symbol];
     const auto& s = impl_->symbols[symbol];
 
     while (true) {
-        uint64_t v1 = s.version.load(std::memory_order_acquire);
-        if (v1 & 1) continue;  // writer active
+        uint64_t start = s.seq.load(std::memory_order_acquire);
+        if (start & 1) continue;
 
-        out = s.state;         // plain copy
+        out = s.data;
 
-        uint64_t v2 = s.version.load(std::memory_order_acquire);
-        if (v1 == v2)
-            return true;       // consistent snapshot
+        uint64_t end = s.seq.load(std::memory_order_acquire);
+        if (start == end)
+            return true;
     }
+}size_t LockFreeSymbolCache::size() const {
+    return impl_->symbols.size();
 }
 
 void LockFreeSymbolCache::updateTrade(
@@ -131,45 +156,15 @@ void LockFreeSymbolCache::updateTrade(
     auto& s = impl_->symbols[symbol];
     begin_write(s);
 
-    s.state.last_traded_price = price;
-    s.state.last_traded_quantity = qty;
-    s.state.last_update_time = ts;
-    s.state.update_count++;
+    s.data.last_traded_price = price;
+    s.data.last_traded_quantity = qty;
+    s.data.last_update_time = ts;
+    s.data.update_count++;
+
+    // s.state.last_traded_price = price;
+    // s.state.last_traded_quantity = qty;
+    // s.state.last_update_time = ts;
+    // s.state.update_count++;
 
     end_write(s);
 }
-
-/*******************************************************************************************************8*/
-// Without Atomic state 
-// void LockFreeSymbolCache::updateTrade(
-//     uint32_t symbol, double price, uint32_t qty, uint64_t ts) {
-
-//     auto& s = symbols_[symbol];
-//     begin_write(s);
-
-//     s.state.last_traded_price = price;
-//     s.state.last_traded_quantity = qty;
-//     s.state.last_update_time = ts;
-//     s.state.update_count++;
-
-//     end_write(s);
-// }
-
-/*******************************************************************************************************8*/
-// SymbolCache::SymbolCache(size_t num_symbols)
-//     : last_ticks_(num_symbols) {}
-
-// void SymbolCache::update(const Tick& tick) {
-//     auto& last = last_ticks_[tick.symbol_id];
-
-//     if (last.seq_no != 0 &&
-//         tick.seq_no != last.seq_no + 1) {
-//         // gap detected (log later)
-//     }
-
-//     last = tick;
-// }
-
-// const Tick& SymbolCache::last(uint32_t symbol_id) const {
-//     return last_ticks_[symbol_id];
-// }

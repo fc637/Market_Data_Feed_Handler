@@ -16,14 +16,9 @@
 
 class FeedHandler {
 public:
-    FeedHandler(const std::string& host,
+   FeedHandler(const std::string& host,
                 uint16_t port,
-                LockFreeSymbolCache& cache)
-        : host_(host),
-          port_(port),
-          cache_(cache),
-          epoll_fd_(-1),
-          running_(true) {}
+                LockFreeSymbolCache& cache);
 
     void run();
 
@@ -44,6 +39,16 @@ private:
     MarketDataSocket socket_;
     MarketDataParser parser_;
 };
+
+FeedHandler::FeedHandler(const std::string& host,
+                         uint16_t port,
+                         LockFreeSymbolCache& cache)
+    : host_(host),
+      port_(port),
+      cache_(cache),
+      epoll_fd_(-1),
+      running_(true),
+      parser_(cache.size()) {} 
 
 bool FeedHandler::connect_with_retry() {
     constexpr int MAX_RETRIES = 5;
@@ -113,17 +118,43 @@ void FeedHandler::run() {
 
                 if (bytes > 0) {
 
-                    parser_.consume(reinterpret_cast<const uint8_t*>(rx_buffer.data()),bytes,[&](const Tick& tick) {
-                        // Trade update
-                        if (tick.trade_qty > 0) {
-                            cache_.updateTrade(tick.symbol_id,tick.last_trade_price,tick.trade_qty,tick.timestamp_ns);
-                        }
+                    parser_.consume(reinterpret_cast<const uint8_t*>(rx_buffer.data()),bytes, [&](const Tick& tick) {
 
-                        // Quote update
-                        cache_.updateBid(tick.symbol_id,tick.bid_price,tick.bid_qty,tick.timestamp_ns);
-                        cache_.updateAsk(tick.symbol_id,tick.ask_price,tick.ask_qty,tick.timestamp_ns);
+                    if (tick.type == MsgType::Trade) {
+                        cache_.updateTrade(
+                            tick.symbol_id,
+                            tick.last_trade_price,
+                            tick.trade_qty,
+                            tick.timestamp_ns
+                        );
+                    }
+                    else if (tick.type == MsgType::Quote) {
+                        cache_.updateBid(
+                            tick.symbol_id,
+                            tick.bid_price,
+                            tick.bid_qty,
+                            tick.timestamp_ns
+                        );
+                        cache_.updateAsk(
+                            tick.symbol_id,
+                            tick.ask_price,
+                            tick.ask_qty,
+                            tick.timestamp_ns
+                        );
+                    }
+                 });
 
-                        });
+                    // parser_.consume(reinterpret_cast<const uint8_t*>(rx_buffer.data()),bytes,[&](const Tick& tick) {
+                    //     // Trade update
+                    //     if (tick.trade_qty > 0) {
+                    //         cache_.updateTrade(tick.symbol_id,tick.last_trade_price,tick.trade_qty,tick.timestamp_ns);
+                    //     }
+
+                    //     // Quote update
+                    //     cache_.updateBid(tick.symbol_id,tick.bid_price,tick.bid_qty,tick.timestamp_ns);
+                    //     cache_.updateAsk(tick.symbol_id,tick.ask_price,tick.ask_qty,tick.timestamp_ns);
+
+                    //     });
 
                     // Feed raw bytes to parser
                     // parser_.consume(rx_buffer.data(), bytes,[&](const Tick& tick) {
