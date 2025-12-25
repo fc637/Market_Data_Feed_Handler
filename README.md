@@ -116,44 +116,6 @@ The system consists of two main components:
   - Min / Max / Mean latency
 - Optional CSV export for offline analysis
 
----
-
-## Repository Structure
-
-## Repository Structure
-
-├── src/
-│ ├── server/
-│ │ ├── exchange_simulator.cpp # TCP server
-│ │ ├── tick_generator.cpp # GBM implementation
-│ │ └── client_manager.cpp # Client handling
-│ ├── client/
-│ │ ├── feed_handler.cpp # Main feed handler
-│ │ ├── socket.cpp # TCP client socket
-│ │ ├── parser.cpp # Binary protocol parser
-│ │ └── visualizer.cpp # Terminal UI
-│ ├── common/
-│ │ ├── protocol.h # Shared protocol
-│ │ ├── cache.cpp # Lock-free symbol cache
-│ │ ├── memory_pool.cpp # Buffer pool
-│ │ └── latency_tracker.cpp # Latency measurement
-├── include/ # Public headers
-├── tests/ # Unit tests
-├── benchmarks/ # Microbenchmarks
-├── docs/
-│ ├── DESIGN.md # Architecture & design decisions
-│ ├── PERFORMANCE.md # Benchmark results & analysis
-│ ├── NETWORK.md # Socket & epoll details
-│ ├── GBM.md # Geometric Brownian Motion explanation
-│ └── QUESTIONS.md # Critical thinking answers
-├── scripts/
-│ ├── build.sh # Build all binaries
-│ ├── run_server.sh # Run exchange simulator
-│ ├── run_client.sh # Run feed handler
-│ ├── run_demo.sh # Run full demo
-│ └── benchmark_latency.sh # Latency benchmarks
-├── CMakeLists.txt
-└── README.md
 
 
 ## Build Instructions
